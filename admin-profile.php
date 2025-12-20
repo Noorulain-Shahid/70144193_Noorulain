@@ -13,49 +13,80 @@ $user = mysqli_fetch_assoc($result);
 
 // Handle Profile Update
 if (isset($_POST['update_profile'])) {
-    $name = mysqli_real_escape_string($conn, $_POST['name']);
-    $new_email = mysqli_real_escape_string($conn, $_POST['email']);
-    $phone = mysqli_real_escape_string($conn, $_POST['phone']);
+    $name = mysqli_real_escape_string($conn, trim($_POST['name']));
+    $new_email = mysqli_real_escape_string($conn, trim($_POST['email']));
+    $phone = mysqli_real_escape_string($conn, trim($_POST['phone']));
     
-    $update_query = "UPDATE users SET name='$name', email='$new_email', phone='$phone' WHERE email='$email'";
-    if (mysqli_query($conn, $update_query)) {
-        $_SESSION['email'] = $new_email; // Update session email if changed
-        $_SESSION['name'] = $name;
-        $email = $new_email; // Update local variable
-        $message = "Profile updated successfully!";
-        // Refresh user data
-        $query = "SELECT * FROM users WHERE email='$email'";
-        $result = mysqli_query($conn, $query);
-        $user = mysqli_fetch_assoc($result);
+    // Validation
+    if (empty($name)) {
+        $error = "Name cannot be empty.";
+    } elseif (empty($new_email)) {
+        $error = "Email cannot be empty.";
+    } elseif (!filter_var($new_email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Invalid email format.";
+    } elseif (!empty($phone) && !preg_match('/^[\d\s\+\-\(\)]+$/', $phone)) {
+        $error = "Invalid phone number format.";
     } else {
-        $error = "Error updating profile: " . mysqli_error($conn);
-    }
-}
-
-// Handle Password Change
-if (isset($_POST['change_password'])) {
-    $current_password = $_POST['current_password'];
-    $new_password = $_POST['new_password'];
-    $confirm_password = $_POST['confirm_password'];
-    
-    if (password_verify($current_password, $user['password'])) {
-        if ($new_password === $confirm_password) {
-            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-            $update_query = "UPDATE users SET password='$hashed_password' WHERE email='$email'";
+        // Check if email is already taken by another user
+        if ($new_email !== $email) {
+            $check_query = "SELECT id FROM users WHERE email='$new_email' AND email!='$email'";
+            $check_result = mysqli_query($conn, $check_query);
+            if (mysqli_num_rows($check_result) > 0) {
+                $error = "This email is already registered.";
+            }
+        }
+        
+        // If no errors, proceed with update
+        if (empty($error)) {
+            $update_query = "UPDATE users SET name='$name', email='$new_email', phone='$phone' WHERE email='$email'";
             if (mysqli_query($conn, $update_query)) {
-                $message = "Password changed successfully!";
+                $_SESSION['email'] = $new_email; // Update session email if changed
+                $_SESSION['name'] = $name;
+                $email = $new_email; // Update local variable
+                $message = "Profile updated successfully!";
                 // Refresh user data
                 $query = "SELECT * FROM users WHERE email='$email'";
                 $result = mysqli_query($conn, $query);
                 $user = mysqli_fetch_assoc($result);
             } else {
-                $error = "Error changing password: " . mysqli_error($conn);
+                $error = "Error updating profile: " . mysqli_error($conn);
             }
-        } else {
-            $error = "New passwords do not match.";
         }
-    } else {
+    }
+}
+
+// Handle Password Change
+if (isset($_POST['change_password'])) {
+    $current_password = trim($_POST['current_password']);
+    $new_password = trim($_POST['new_password']);
+    $confirm_password = trim($_POST['confirm_password']);
+    
+    // Validation
+    if (empty($current_password)) {
+        $error = "Please enter your current password.";
+    } elseif (empty($new_password)) {
+        $error = "Please enter a new password.";
+    } elseif (strlen($new_password) < 6) {
+        $error = "New password must be at least 6 characters long.";
+    } elseif ($new_password !== $confirm_password) {
+        $error = "New passwords do not match.";
+    } elseif ($current_password === $new_password) {
+        $error = "New password must be different from current password.";
+    } elseif (!password_verify($current_password, $user['password'])) {
         $error = "Incorrect current password.";
+    } else {
+        // All validations passed, update password
+        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+        $update_query = "UPDATE users SET password='$hashed_password' WHERE email='$email'";
+        if (mysqli_query($conn, $update_query)) {
+            $message = "Password changed successfully!";
+            // Refresh user data
+            $query = "SELECT * FROM users WHERE email='$email'";
+            $result = mysqli_query($conn, $query);
+            $user = mysqli_fetch_assoc($result);
+        } else {
+            $error = "Error changing password: " . mysqli_error($conn);
+        }
     }
 }
 ?>
@@ -193,7 +224,8 @@ if (isset($_POST['change_password'])) {
                             </div>
                             <div class="form-group">
                                 <label for="adminPhone"><i class="fas fa-phone"></i> Phone Number</label>
-                                <input type="tel" id="adminPhone" name="phone" value="<?php echo $user['phone']; ?>" placeholder="+92 300 1234567">
+                                <input type="tel" id="adminPhone" name="phone" value="<?php echo $user['phone']; ?>" placeholder="+92 300 1234567" pattern="[\d\s\+\-\(\)]+" title="Please enter a valid phone number">
+                                <small><i class="fas fa-info-circle"></i> Numbers, spaces, +, -, ( ) allowed</small>
                             </div>
                             <div class="form-group">
                                 <label for="adminRole"><i class="fas fa-shield-alt"></i> Role</label>
@@ -224,12 +256,12 @@ if (isset($_POST['change_password'])) {
                             <div class="form-group">
                                 <label for="newPassword"><i class="fas fa-lock"></i> New Password</label>
                                 <div class="password-input">
-                                    <input type="password" id="newPassword" name="new_password" required minlength="6">
+                                    <input type="password" id="newPassword" name="new_password" required minlength="6" pattern=".{6,}" title="Password must be at least 6 characters">
                                     <button type="button" class="toggle-password" onclick="togglePasswordField('newPassword')">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                 </div>
-                                <small><i class="fas fa-info-circle"></i> Minimum 6 characters</small>
+                                <small><i class="fas fa-info-circle"></i> Minimum 6 characters, must be different from current password</small>
                             </div>
                             <div class="form-group">
                                 <label for="confirmPassword"><i class="fas fa-lock"></i> Confirm New Password</label>

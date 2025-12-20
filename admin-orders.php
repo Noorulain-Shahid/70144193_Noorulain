@@ -258,10 +258,20 @@ while ($row = mysqli_fetch_assoc($prod_result)) {
                 </div>
 
                 <!-- Action Bar -->
-                <div class="action-bar" style="margin-bottom: 20px;">
+                <div class="action-bar" style="margin-bottom: 20px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                     <button class="btn-primary" onclick="openAddOrderModal()">
                         <i class="fas fa-plus"></i> Add New Order
                     </button>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="orderSearch" placeholder="Search orders..." onkeyup="filterOrders()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <select id="statusFilter" onchange="filterOrders()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="">All Statuses</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Processing">Processing</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Delivered">Delivered</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Orders Table -->
@@ -410,6 +420,38 @@ while ($row = mysqli_fetch_assoc($prod_result)) {
 
         function closeAddOrderModal() {
             document.getElementById('addOrderModal').style.display = 'none';
+        }
+
+        function filterOrders() {
+            var input = document.getElementById("orderSearch");
+            var filter = input.value.toUpperCase();
+            var statusFilter = document.getElementById("statusFilter").value.toUpperCase();
+            var table = document.getElementById("ordersTable");
+            var tr = table.getElementsByTagName("tr");
+
+            for (var i = 0; i < tr.length; i++) {
+                var tdId = tr[i].getElementsByTagName("td")[0]; // ID
+                var tdName = tr[i].getElementsByTagName("td")[1]; // Name
+                var tdStatus = tr[i].getElementsByTagName("td")[4]; // Status
+                
+                if (tdId && tdName) {
+                    var txtValueId = tdId.textContent || tdId.innerText;
+                    var txtValueName = tdName.textContent || tdName.innerText;
+                    var txtValueStatus = tdStatus.textContent || tdStatus.innerText;
+                    
+                    // Check if it's a "No orders" row
+                    if (tdId.getAttribute('colspan')) continue;
+
+                    var matchesSearch = txtValueId.toUpperCase().indexOf(filter) > -1 || txtValueName.toUpperCase().indexOf(filter) > -1;
+                    var matchesStatus = statusFilter === "" || txtValueStatus.toUpperCase().indexOf(statusFilter) > -1;
+
+                    if (matchesSearch && matchesStatus) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }       
+            }
         }
 
         // Close modal when clicking outside

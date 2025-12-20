@@ -22,10 +22,23 @@ if (isset($_POST['submit'])) {
     $description = mysqli_real_escape_string($conn, $_POST['description']);
     $icon = mysqli_real_escape_string($conn, $_POST['icon']);
     
+    $image_data = null;
+    $image_type = null;
+    if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
+        $image_content = file_get_contents($_FILES['image']['tmp_name']);
+        $image_data = mysqli_real_escape_string($conn, $image_content);
+        $image_type = $_FILES['image']['type'];
+    }
+
     if (isset($_POST['id']) && !empty($_POST['id'])) {
         // Update
         $id = $_POST['id'];
-        $query = "UPDATE categories SET name='$name', description='$description', icon='$icon' WHERE id=$id AND user_id=$user_id";
+        $query = "UPDATE categories SET name='$name', description='$description', icon='$icon'";
+        if ($image_data) {
+            $query .= ", image_data='$image_data', image_type='$image_type'";
+        }
+        $query .= " WHERE id=$id AND user_id=$user_id";
+        
         if (mysqli_query($conn, $query)) {
             $message = "Category updated successfully!";
         } else {
@@ -33,7 +46,10 @@ if (isset($_POST['submit'])) {
         }
     } else {
         // Insert
-        $query = "INSERT INTO categories (user_id, name, description, icon) VALUES ('$user_id', '$name', '$description', '$icon')";
+        $img_d = $image_data ? "'$image_data'" : "NULL";
+        $img_t = $image_type ? "'$image_type'" : "NULL";
+        
+        $query = "INSERT INTO categories (user_id, name, description, icon, image_data, image_type) VALUES ('$user_id', '$name', '$description', '$icon', $img_d, $img_t)";
         if (mysqli_query($conn, $query)) {
             $message = "Category added successfully!";
         } else {
@@ -68,50 +84,109 @@ while ($row = mysqli_fetch_assoc($result)) {
     <style>
         .category-card {
             background: white;
-            padding: 20px;
+            padding: 45px 30px 40px 30px;
             border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-bottom: 0;
+            border: 1px solid #eee;
+            transition: transform 0.2s, box-shadow 0.2s;
+            height: 100%;
+        }
+        .category-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .category-icon-wrapper {
+            width: 80px;
+            height: 80px;
+            background: #2c3e50;
+            border-radius: 15px;
             display: flex;
             align-items: center;
-            gap: 20px;
+            justify-content: center;
             margin-bottom: 20px;
         }
         .category-card i {
-            font-size: 2rem;
-            color: var(--primary-color);
-            width: 50px;
-            text-align: center;
+            font-size: 2.5rem;
+            color: white;
+        }
+        .category-card img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
         }
         .category-info {
-            flex: 1;
+            width: 100%;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
         }
         .category-info h3 {
-            margin: 0 0 5px 0;
-            font-size: 1.1rem;
+            margin: 0 0 12px 0;
+            font-size: 1.3rem;
+            color: #2c3e50;
+            font-weight: 600;
         }
         .category-info p {
-            margin: 0;
+            margin: 0 0 12px 0;
             color: #666;
+            font-size: 0.95rem;
+        }
+        .category-product-count {
             font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 20px !important;
         }
         .category-actions {
             display: flex;
-            gap: 10px;
+            gap: 12px;
+            justify-content: center;
+            margin-top: auto;
+            padding-top: 15px;
         }
         .action-btn {
             border: none;
-            background: none;
+            background: #2c3e50;
             cursor: pointer;
-            font-size: 1rem;
-            padding: 5px;
-            transition: color 0.3s;
+            font-size: 1.3rem;
+            padding: 0;
+            border-radius: 12px;
+            transition: all 0.3s;
+            color: white;
+            width: 55px;
+            height: 55px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .action-btn.edit { color: #3498db; }
-        .action-btn.delete { color: #e74c3c; }
+        .action-btn.edit { 
+            background: #2c3e50;
+            color: white;
+        }
+        .action-btn.edit:hover { 
+            background: #1a252f;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .action-btn.delete { 
+            background: #2c3e50;
+            color: white;
+        }
+        .action-btn.delete:hover { 
+            background: #1a252f;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
         .categories-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 30px;
         }
         .alert {
             padding: 15px;
@@ -120,9 +195,9 @@ while ($row = mysqli_fetch_assoc($result)) {
             border-radius: 4px;
         }
         .alert-success {
-            color: #3c763d;
-            background-color: #dff0d8;
-            border-color: #d6e9c6;
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
         }
     </style>
 </head>
@@ -212,13 +287,28 @@ while ($row = mysqli_fetch_assoc($result)) {
                 <div class="categories-grid" id="categoriesGrid">
                     <?php foreach ($categories as $category) { ?>
                     <div class="category-card">
-                        <i class="<?php echo $category['icon'] ? $category['icon'] : 'fas fa-tag'; ?>"></i>
+                        <div class="category-icon-wrapper">
+                            <?php if(!empty($category['image_data'])) { ?>
+                                <img src="data:<?php echo $category['image_type']; ?>;base64,<?php echo base64_encode($category['image_data']); ?>" alt="<?php echo $category['name']; ?>">
+                            <?php } else { ?>
+                                <i class="<?php echo $category['icon'] ? $category['icon'] : 'fas fa-tag'; ?>"></i>
+                            <?php } ?>
+                        </div>
                         <div class="category-info">
                             <h3><?php echo $category['name']; ?></h3>
                             <p><?php echo $category['description']; ?></p>
-                            <p class="text-muted category-product-count"><?php echo $category['productCount']; ?> products</p>
+                            <p class="category-product-count"><?php echo $category['productCount']; ?> products</p>
                             <div class="category-actions">
-                                <button class="action-btn edit" onclick='editCategory(<?php echo json_encode($category); ?>)' title="Edit">
+                                <?php 
+                                    // Create a lightweight object for JS to avoid huge BLOB data breaking the onclick attribute
+                                    $catForJs = [
+                                        'id' => $category['id'],
+                                        'name' => $category['name'],
+                                        'description' => $category['description'],
+                                        'icon' => $category['icon']
+                                    ];
+                                ?>
+                                <button class="action-btn edit" onclick='editCategory(<?php echo json_encode($catForJs); ?>)' title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <button class="action-btn delete" onclick="confirmDeleteCategory(<?php echo $category['id']; ?>)" title="Delete">
@@ -244,7 +334,7 @@ while ($row = mysqli_fetch_assoc($result)) {
                 <button class="close-btn" onclick="closeCategoryModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="categoryForm" method="post" action="">
+                <form id="categoryForm" method="post" action="" enctype="multipart/form-data">
                     <input type="hidden" id="categoryId" name="id">
                     <div class="form-group">
                         <label for="categoryName">Category Name *</label>
@@ -253,6 +343,10 @@ while ($row = mysqli_fetch_assoc($result)) {
                     <div class="form-group">
                         <label for="categoryDescription">Description</label>
                         <textarea id="categoryDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="categoryImage">Category Image (Overrides Icon)</label>
+                        <input type="file" id="categoryImage" name="image" accept="image/*">
                     </div>
                     <div class="form-group">
                         <label for="categoryIcon">Icon (Font Awesome class)</label>

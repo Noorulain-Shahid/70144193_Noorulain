@@ -24,10 +24,18 @@ if (isset($_POST['email'])) {
     if ($rows == 1) {
         $user = mysqli_fetch_assoc($result);
         if (password_verify($password, $user['password'])) {
+            // Security: Regenerate Session ID to prevent Session Fixation
+            session_regenerate_id(true);
+
             $_SESSION['email'] = $email;
             $_SESSION['name'] = $user['name'];
             $_SESSION['role'] = $user['role'];
             $_SESSION['user_id'] = $user['id']; // Store User ID
+            
+            // Security: Bind session to User Agent (Browser)
+            $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
+            $_SESSION['last_activity'] = time(); // Start timer
+
             header("Location: admin-dashboard.php");
             exit();
         } else {

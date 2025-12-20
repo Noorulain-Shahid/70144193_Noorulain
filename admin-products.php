@@ -25,11 +25,24 @@ if (isset($_POST['submit'])) {
     $category_id = mysqli_real_escape_string($conn, $_POST['category_id']);
     
     $image_path = "";
+    $image_data = null;
+    $image_type = null;
+
     if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
+        // File System Upload (Backup/Legacy)
         $target_dir = "uploads/";
+        if (!file_exists($target_dir)) { mkdir($target_dir, 0777, true); }
         $target_file = $target_dir . basename($_FILES["image"]["name"]);
         if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
             $image_path = $target_file;
+        }
+        
+        // Database BLOB Upload (Primary)
+        // Re-read the file from the moved location because tmp_name is gone
+        if(file_exists($target_file)) {
+            $image_content = file_get_contents($target_file);
+            $image_data = mysqli_real_escape_string($conn, $image_content);
+            $image_type = $_FILES['image']['type'];
         }
     }
 
@@ -37,8 +50,8 @@ if (isset($_POST['submit'])) {
         // Update
         $id = $_POST['id'];
         $update_query = "UPDATE products SET name='$name', description='$description', price='$price', stock='$stock', category_id='$category_id'";
-        if ($image_path != "") {
-            $update_query .= ", image='$image_path'";
+        if ($image_data) {
+            $update_query .= ", image='$image_path', image_data='$image_data', image_type='$image_type'";
         }
         $update_query .= " WHERE id=$id AND user_id=$user_id";
         
@@ -49,7 +62,10 @@ if (isset($_POST['submit'])) {
         }
     } else {
         // Insert
-        $query = "INSERT INTO products (user_id, name, description, price, stock, category_id, image) VALUES ('$user_id', '$name', '$description', '$price', '$stock', '$category_id', '$image_path')";
+        $img_d = $image_data ? "'$image_data'" : "NULL";
+        $img_t = $image_type ? "'$image_type'" : "NULL";
+        
+        $query = "INSERT INTO products (user_id, name, description, price, stock, category_id, image, image_data, image_type) VALUES ('$user_id', '$name', '$description', '$price', '$stock', '$category_id', '$image_path', $img_d, $img_t)";
         if (mysqli_query($conn, $query)) {
             $message = "Product added successfully!";
         } else {
@@ -203,7 +219,9 @@ while ($row = mysqli_fetch_assoc($result)) {
                                 <?php foreach ($products as $product) { ?>
                                 <tr>
                                     <td>
-                                        <?php if($product['image']) { ?>
+                                        <?php if(!empty($product['image_data'])) { ?>
+                                            <img src="data:<?php echo $product['image_type']; ?>;base64,<?php echo base64_encode($product['image_data']); ?>" alt="Product" class="product-image-thumb">
+                                        <?php } elseif($product['image']) { ?>
                                             <img src="<?php echo $product['image']; ?>" alt="Product" class="product-image-thumb">
                                         <?php } else { ?>
                                             <i class="fas fa-box fa-2x text-muted"></i>

@@ -4,6 +4,20 @@ require('db_connect.php');
 
 $user_id = $_SESSION['user_id'];
 
+// Handle Reset Stats (Sales & Orders only)
+if (isset($_POST['reset_stats'])) {
+    // Delete Orders (Resets Sales & Order Counts)
+    mysqli_query($conn, "DELETE FROM orders WHERE user_id = $user_id");
+    
+    // Delete Feedback (Resets Reviews)
+    mysqli_query($conn, "DELETE FROM feedback WHERE user_id = $user_id");
+    
+    // NOTE: Products, Categories, and Customers are KEPT SAFE.
+    
+    header("Location: admin-dashboard.php?msg=stats_reset");
+    exit();
+}
+
 // Fetch stats
 $total_sales = 0;
 $total_orders = 0;
@@ -63,6 +77,14 @@ $query = "SELECT * FROM products WHERE user_id = $user_id LIMIT 5";
 $result = mysqli_query($conn, $query);
 while ($row = mysqli_fetch_assoc($result)) {
     $top_products[] = $row;
+}
+
+// Fetch Low Stock Products
+$low_stock_products = [];
+$query = "SELECT * FROM products WHERE user_id = $user_id AND stock < 10 LIMIT 5";
+$result = mysqli_query($conn, $query);
+while ($row = mysqli_fetch_assoc($result)) {
+    $low_stock_products[] = $row;
 }
 ?>
 <!DOCTYPE html>
@@ -149,65 +171,101 @@ while ($row = mysqli_fetch_assoc($result)) {
             <!-- Dashboard Content -->
             <div class="content-area">
                 <!-- Welcome Banner -->
-                <div class="welcome-banner">
+                <div class="welcome-banner" style="display: flex; justify-content: space-between; align-items: center;">
                     <div class="welcome-content">
                         <h2><i class="fas fa-chart-line"></i> Welcome Back, <span id="welcomeName"><?php echo $_SESSION['name']; ?></span>!</h2>
                         <p>Here's what's happening with your store today.</p>
                     </div>
-                    <div class="welcome-icon">
-                        <i class="fas fa-store-alt"></i>
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <form method="post" onsubmit="return confirm('Are you sure you want to reset your Analytics? \n\nThis will clear all Sales, Orders, and Feedback history.\n\nYour Products, Categories, and Customers will NOT be deleted.');">
+                            <button type="submit" name="reset_stats" style="background: #e67e22; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: background 0.3s;">
+                                <i class="fas fa-sync-alt"></i> Reset Stats
+                            </button>
+                        </form>
+                        <div class="welcome-icon">
+                            <i class="fas fa-store-alt"></i>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Stats Cards -->
                 <div class="stats-grid">
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="window.location.href='admin-analytics.php'" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
                         <div class="stat-icon sales">
                             <i class="fas fa-rupee-sign"></i>
                         </div>
                         <div class="stat-info">
                             <h3>Rs <?php echo number_format($total_sales, 0); ?></h3>
                             <p>Total Sales</p>
+                            <small style="color: #888; font-size: 0.8em;">View Analytics <i class="fas fa-arrow-right"></i></small>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="window.location.href='admin-orders.php'" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
                         <div class="stat-icon orders">
                             <i class="fas fa-shopping-cart"></i>
                         </div>
                         <div class="stat-info">
                             <h3><?php echo $total_orders; ?></h3>
                             <p>Total Orders</p>
+                            <small style="color: #888; font-size: 0.8em;">Manage Orders <i class="fas fa-arrow-right"></i></small>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="window.location.href='admin-products.php'" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
                         <div class="stat-icon products">
                             <i class="fas fa-box"></i>
                         </div>
                         <div class="stat-info">
                             <h3><?php echo $total_products; ?></h3>
                             <p>Total Products</p>
+                            <small style="color: #888; font-size: 0.8em;">Manage Inventory <i class="fas fa-arrow-right"></i></small>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="window.location.href='admin-customers.php'" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
                         <div class="stat-icon customers">
                             <i class="fas fa-users"></i>
                         </div>
                         <div class="stat-info">
                             <h3><?php echo $total_customers; ?></h3>
                             <p>Total Customers</p>
+                            <small style="color: #888; font-size: 0.8em;">View Customers <i class="fas fa-arrow-right"></i></small>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="window.location.href='admin-categories.php'" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
                         <div class="stat-icon categories">
                             <i class="fas fa-tags"></i>
                         </div>
                         <div class="stat-info">
                             <h3><?php echo $total_categories; ?></h3>
                             <p>Total Categories</p>
+                            <small style="color: #888; font-size: 0.8em;">Manage Categories <i class="fas fa-arrow-right"></i></small>
                         </div>
                     </div>
                 </div>
-
+                <?php if(!empty($low_stock_products)) { ?>
+                <div class="dashboard-card" style="margin-bottom: 20px; border-left: 5px solid #f39c12;">
+                    <h3 style="margin-top: 0; color: #f39c12;"><i class="fas fa-exclamation-triangle"></i> Low Stock Alert</h3>
+                    <div class="table-responsive">
+                        <table class="data-table" style="margin-top: 10px;">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Stock Left</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach($low_stock_products as $prod) { ?>
+                                    <tr>
+                                        <td><?php echo $prod['name']; ?></td>
+                                        <td><span class="status-badge warning"><?php echo $prod['stock']; ?></span></td>
+                                        <td><a href="admin-products.php" class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem; text-decoration: none;">Restock</a></td>
+                                    </tr>
+                                <?php } ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <?php } ?>
                 <!-- Charts and Recent Activity -->
                 <div class="dashboard-grid">
                     <!-- Sales Chart -->
