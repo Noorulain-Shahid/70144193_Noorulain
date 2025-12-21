@@ -84,7 +84,7 @@ while ($row = mysqli_fetch_assoc($result)) {
     <style>
         .category-card {
             background: white;
-            padding: 45px 30px 40px 30px;
+            padding: 30px 30px 30px 30px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             display: flex;
@@ -145,8 +145,8 @@ while ($row = mysqli_fetch_assoc($result)) {
             display: flex;
             gap: 12px;
             justify-content: center;
-            margin-top: auto;
-            padding-top: 15px;
+            margin-top: 15px;
+            padding-top: 0;
         }
         .action-btn {
             border: none;
