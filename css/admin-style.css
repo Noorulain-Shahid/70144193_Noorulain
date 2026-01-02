@@ -58,13 +58,10 @@ body {
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    background: 
-        linear-gradient(135deg, rgba(26, 26, 26, 0.85) 0%, rgba(0, 0, 0, 0.95) 100%),
-        url('../images/clothing-pattern.jpg');
-    background-size: cover;
+    background-image: url('../images/clothing-pattern.jpg?v=2');
+    background-size: auto;
     background-position: center;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
+    background-repeat: repeat;
     padding: 20px;
 }
 

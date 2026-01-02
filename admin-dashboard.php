@@ -4,58 +4,51 @@ require('db_connect.php');
 
 $user_id = $_SESSION['user_id'];
 
-// Handle Reset Stats (Sales & Orders only)
-if (isset($_POST['reset_stats'])) {
-    // Delete Orders (Resets Sales & Order Counts)
-    mysqli_query($conn, "DELETE FROM orders WHERE user_id = $user_id");
-    
-    // Delete Feedback (Resets Reviews)
-    mysqli_query($conn, "DELETE FROM feedback WHERE user_id = $user_id");
-    
-    // NOTE: Products, Categories, and Customers are KEPT SAFE.
-    
-    header("Location: admin-dashboard.php?msg=stats_reset");
-    exit();
-}
-
-// Fetch stats
+// Fetch stats from existing tables
 $total_sales = 0;
 $total_orders = 0;
 $total_products = 0;
 $total_customers = 0;
 $total_categories = 0;
 
-$result = mysqli_query($conn, "SELECT SUM(total_amount) as total FROM orders WHERE user_id = $user_id");
-if ($row = mysqli_fetch_assoc($result)) {
+// Get total sales
+$result = mysqli_query($conn, "SELECT SUM(total) as total FROM orders");
+if ($result && $row = mysqli_fetch_assoc($result)) {
     $total_sales = $row['total'] ? $row['total'] : 0;
 }
 
-$result = mysqli_query($conn, "SELECT COUNT(*) as count FROM orders WHERE user_id = $user_id");
-if ($row = mysqli_fetch_assoc($result)) {
+// Get total orders
+$result = mysqli_query($conn, "SELECT COUNT(*) as count FROM orders");
+if ($result && $row = mysqli_fetch_assoc($result)) {
     $total_orders = $row['count'];
 }
 
-$result = mysqli_query($conn, "SELECT COUNT(*) as count FROM products WHERE user_id = $user_id");
-if ($row = mysqli_fetch_assoc($result)) {
+// Get total products
+$result = mysqli_query($conn, "SELECT COUNT(*) as count FROM products");
+if ($result && $row = mysqli_fetch_assoc($result)) {
     $total_products = $row['count'];
 }
 
-$result = mysqli_query($conn, "SELECT COUNT(*) as count FROM customers WHERE user_id = $user_id");
-if ($row = mysqli_fetch_assoc($result)) {
+// Get total customers (users)
+$result = mysqli_query($conn, "SELECT COUNT(*) as count FROM users");
+if ($result && $row = mysqli_fetch_assoc($result)) {
     $total_customers = $row['count'];
 }
 
-$result = mysqli_query($conn, "SELECT COUNT(*) as count FROM categories WHERE user_id = $user_id");
-if ($row = mysqli_fetch_assoc($result)) {
+// Get total categories
+$result = mysqli_query($conn, "SELECT COUNT(*) as count FROM categories");
+if ($result && $row = mysqli_fetch_assoc($result)) {
     $total_categories = $row['count'];
 }
 
 // Fetch recent orders
 $recent_orders = [];
-$query = "SELECT * FROM orders WHERE user_id = $user_id ORDER BY order_date DESC LIMIT 5";
+$query = "SELECT * FROM orders ORDER BY created_at DESC LIMIT 5";
 $result = mysqli_query($conn, $query);
-while ($row = mysqli_fetch_assoc($result)) {
-    $recent_orders[] = $row;
+if ($result) {
+    while ($row = mysqli_fetch_assoc($result)) {
+        $recent_orders[] = $row;
+    }
 }
 
 // Fetch sales for last 7 days
@@ -65,26 +58,33 @@ for ($i = 6; $i >= 0; $i--) {
     $date = date('Y-m-d', strtotime("-$i days"));
     $dates[] = date('M d', strtotime($date));
     
-    $query = "SELECT SUM(total_amount) as total FROM orders WHERE user_id = $user_id AND DATE(order_date) = '$date'";
+    $query = "SELECT SUM(total) as total FROM orders WHERE DATE(created_at) = '$date'";
     $result = mysqli_query($conn, $query);
-    $row = mysqli_fetch_assoc($result);
-    $sales[] = $row['total'] ? $row['total'] : 0;
+    if ($result && $row = mysqli_fetch_assoc($result)) {
+        $sales[] = $row['total'] ? $row['total'] : 0;
+    } else {
+        $sales[] = 0;
+    }
 }
 
 // Fetch top products
 $top_products = [];
-$query = "SELECT * FROM products WHERE user_id = $user_id LIMIT 5";
+$query = "SELECT * FROM products LIMIT 5";
 $result = mysqli_query($conn, $query);
-while ($row = mysqli_fetch_assoc($result)) {
-    $top_products[] = $row;
+if ($result) {
+    while ($row = mysqli_fetch_assoc($result)) {
+        $top_products[] = $row;
+    }
 }
 
 // Fetch Low Stock Products
 $low_stock_products = [];
-$query = "SELECT * FROM products WHERE user_id = $user_id AND stock < 10 LIMIT 5";
+$query = "SELECT * FROM products WHERE quantity < 10 LIMIT 5";
 $result = mysqli_query($conn, $query);
-while ($row = mysqli_fetch_assoc($result)) {
-    $low_stock_products[] = $row;
+if ($result) {
+    while ($row = mysqli_fetch_assoc($result)) {
+        $low_stock_products[] = $row;
+    }
 }
 ?>
 <!DOCTYPE html>

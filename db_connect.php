@@ -2,7 +2,7 @@
 $servername = "localhost";
 $username = "root";
 $password = "";
-$dbname = "ecommerce_admin";
+$dbname = "trendy_wear_db";
 
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
